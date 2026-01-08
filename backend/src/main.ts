@@ -1,11 +1,7 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS Ayarı (Frontend bağlanabilsin diye izin veriyoruz)
+  // CORS Ayarı
   app.enableCors();
 
   // Swagger Ayarları
@@ -13,12 +9,15 @@ async function bootstrap() {
     .setTitle('Handmade Shop API')
     .setDescription('El yapımı ürünler pazaryeri API dokümantasyonu')
     .setVersion('1.0')
-    .addBearerAuth() // Token ile giriş testi için
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document); // localhost:3000/api adresinde çalışacak
+  SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
+  // Railway için process.env.PORT kullan
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(`Server is running on port ${port}`);
 }
 bootstrap();
