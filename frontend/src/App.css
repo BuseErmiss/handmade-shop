@@ -1,42 +1,53 @@
+/* Sayfanın genel arka planı ve font ayarları */
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f8f9fa; /* Hafif gri arka plan e-ticaret siteleri için daha iyidir */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Navbar'ın sayfanın en üstünde sabit kalması ve içeriklerin düzgün akması için */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100vh;
+  display: block; /* Flex-center yerine blok düzeni kullanıyoruz */
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
+/* Kartlar için hover efekti (Ürün listesinde güzel durur) */
 .card {
-  padding: 2em;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
-.read-the-docs {
-  color: #888;
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+/* Navbar logomuz için stil */
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* Butonlara hafif bir yumuşaklık katmak için */
+.btn {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* Formların daha modern görünmesi için */
+.form-control {
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+}
+
+.form-control:focus {
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+
+/* Sayfa geçişlerinde veya boş içeriklerde kullanılan spinner/loading için */
+.loading-container {
+  height: 60vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }

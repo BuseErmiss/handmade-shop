@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from '../entities/order.entity';
@@ -8,126 +8,93 @@ import { CreateOrderDto } from './dto/create-order.dto';
 @Injectable()
 export class OrdersService {
   constructor(
-    @InjectRepository(Order) private orderRepository: Repository<Order>,
-    @InjectRepository(OrderItem) private orderItemRepository: Repository<OrderItem>,
+    @InjectRepository(Order)
+    private ordersRepository: Repository<Order>,
+    @InjectRepository(OrderItem)
+    private orderItemRepository: Repository<OrderItem>,
   ) { }
 
   async create(createOrderDto: CreateOrderDto) {
-    // 0️⃣ Kullanıcının aktif sepeti var mı bak
-    let order = await this.orderRepository.findOne({
-      where: {
-        userId: createOrderDto.userId,
-        status: 'Draft',
-      },
-      relations: ['items'],
+    const { userId, items } = createOrderDto;
+
+    // 1. Yeni sipariş oluştur (Draft/Taslak olarak başlar)
+    const order = this.ordersRepository.create({
+      userId,
+      status: 'Draft',
+      totalPrice: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
     });
-    // 3️⃣ Sipariş yoksa oluştur
-    if (!order) {
-      order = this.orderRepository.create({
-        userId: createOrderDto.userId,
-        totalPrice: 0,
-        status: 'Draft',
+
+    const savedOrder = await this.ordersRepository.save(order);
+
+    // 2. Sipariş kalemlerini oluştur ve kaydet
+    const orderItems = items.map((item) => {
+      return this.orderItemRepository.create({
+        orderId: savedOrder.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        priceAtPurchase: item.price,
       });
+    });
 
-      order = await this.orderRepository.save(order);
-    }
+    await this.orderItemRepository.save(orderItems);
 
-    // 1️⃣ Ürünleri birleştir
-    const mergedItems = new Map<number, any>();
-
-    for (const item of createOrderDto.items) {
-      const productId = Number(item.productId);
-
-      if (mergedItems.has(productId)) {
-        mergedItems.get(productId).quantity += item.quantity;
-      } else {
-        mergedItems.set(productId, {
-          ...item,
-          productId: productId
-        });
-      }
-    }
-
-    // 2️⃣ Toplam fiyatı doğru hesapla
-    const totalPrice = Array.from(mergedItems.values()).reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-
-    for (const item of mergedItems.values()) {
-      const existingItem = order.items?.find(
-        (i) => i.productId === item.productId
-      );
-
-      if (existingItem) {
-        existingItem.quantity += item.quantity;
-        await this.orderItemRepository.save(existingItem);
-      } else {
-        const orderItem = this.orderItemRepository.create({
-          orderId: order.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          priceAtPurchase: item.price
-        });
-        await this.orderItemRepository.save(orderItem);
-      }
-    }
-    order.totalPrice += totalPrice;
-    await this.orderRepository.save(order);
-
-    return { message: 'Sipariş başarıyla oluşturuldu!', orderId: order.id };
+    // İlişkileriyle birlikte geri dön (Frontend'de görünmesi için kritik)
+    return await this.findOne(savedOrder.id);
   }
 
-  async removeItem(userId: number, productId: number) {
-    const order = await this.orderRepository.findOne({
-      where: {
-        userId,
-        status: 'Draft',
-      },
+  async findAll() {
+    return await this.ordersRepository.find({
+      relations: ['items', 'items.product'], // Ürün bilgilerini çekmek için zorunlu
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findOne(id: number) {
+    const order = await this.ordersRepository.findOne({
+      where: { id },
+      relations: ['items', 'items.product'],
+    });
+    if (!order) throw new NotFoundException(`Sipariş #${id} bulunamadı.`);
+    return order;
+  }
+
+  async removeItem(productId: number, userId: number) {
+    // Await eklenerek ESLint hatası giderildi
+    const order = await this.ordersRepository.findOne({
+      where: { userId, status: 'Draft' },
       relations: ['items'],
     });
 
-    if (!order) {
-      throw new Error('Aktif sipariş bulunamadı');
+    if (order) {
+      const itemToRemove = order.items.find((i) => i.productId === productId);
+      if (itemToRemove) {
+        await this.orderItemRepository.remove(itemToRemove);
+        // Toplam fiyatı güncelle
+        order.totalPrice -= itemToRemove.priceAtPurchase * itemToRemove.quantity;
+        await this.ordersRepository.save(order);
+      }
     }
-
-    if (!order.items || order.items.length === 0) {
-      throw new Error('Siparişte ürün yok');
-    }
-
-    const item = order.items.find(
-      (i) => i.productId === productId
-    );
-
-    if (!item) {
-      throw new Error('Ürün siparişte bulunamadı');
-    }
-
-    // totalPrice güvenli azalt
-    order.totalPrice = Math.max(
-      0,
-      order.totalPrice - item.priceAtPurchase * item.quantity
-    );
-
-    await this.orderItemRepository.remove(item);
-    await this.orderRepository.save(order);
-
-    return { message: 'Ürün sepetten silindi' };
+    return { message: 'Ürün kaldırıldı' };
   }
 
+  // backend/src/orders/orders.service.ts içinde checkout kısmını bul ve değiştir:
 
-  findAll() {
-    return this.orderRepository.find({ relations: ['items', 'items.product', 'user'] });
-  }
-
-  findOne(id: number) {
-    return this.orderRepository.findOne({
-      where: { id },
-      relations: ['items', 'items.product', 'user']
+  async checkout(id: number, userId: number): Promise<Order> {
+    // Siparişi hem ID hem de userId ile ara (Güvenlik için)
+    const order = await this.ordersRepository.findOne({
+      where: { id, userId },
+      relations: ['items', 'items.product'],
     });
-  }
 
-  // Update ve remove şimdilik boş kalabilir veya silebilirsin
-  update(id: number, updateOrderDto: any) { return `Update action`; }
-  remove(id: number) { return `Delete action`; }
+    if (!order) {
+      throw new NotFoundException(`Sipariş #${id} bulunamadı veya bu kullanıcıya ait değil.`);
+    }
+
+    if (order.status === 'Tamamlandı') {
+      return order; // Zaten tamamlanmışsa bir şey yapma
+    }
+
+    order.status = 'Tamamlandı';
+    return await this.ordersRepository.save(order);
+  }
 }

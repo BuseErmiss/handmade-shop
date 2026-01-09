@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto'; // Bunu ekledik
+import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -11,24 +11,25 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-  ) {}
+  ) { }
 
-  // Register işlemi
   async create(createUserDto: CreateUserDto) {
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
+    // E-posta adresi zaten kullanımda mı kontrolü
+    const existingUser = await this.findOneByEmail(createUserDto.email);
+    if (existingUser) {
+      throw new ConflictException('Bu e-posta adresi zaten kullanımda.');
+    }
 
-    const newUser = this.usersRepository.create({
-      ...createUserDto,
-      password: hashedPassword,
-    });
+    const newUser = this.usersRepository.create(createUserDto);
 
     return await this.usersRepository.save(newUser);
   }
-
-  // HATA ÇÖZÜMÜ 1: Tip hatası düzeltildi (undefined -> null)
   async findOneByEmail(email: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { email } });
+    return await this.usersRepository.findOne({
+      where: { email },
+      // EĞER BU SATIR YOKSA: bcrypt her zaman 'false' döner çünkü şifre veritabanından gelmez.
+      select: ['id', 'email', 'password', 'role', 'fullName'],
+    });
   }
 
   findAll() {
@@ -37,18 +38,29 @@ export class UsersService {
 
   async findOne(id: number) {
     const user = await this.usersRepository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException(`User #${id} not found`);
+    if (!user) throw new NotFoundException(`Kullanıcı (#${id}) bulunamadı.`);
     return user;
   }
 
-  // HATA ÇÖZÜMÜ 2: Eksik fonksiyonlar eklendi
   async update(id: number, updateUserDto: UpdateUserDto) {
-    // Şimdilik sadece güncelleme işlemini yapalım
-    // Gerçek projede şifre değişiyorsa tekrar hash'lemek gerekir
-    return this.usersRepository.update(id, updateUserDto);
+    const user = await this.findOne(id); // Kullanıcının var olduğundan emin ol
+
+    // Eğer şifre güncelleniyorsa hash'le
+    if (updateUserDto.password) {
+      const salt = await bcrypt.genSalt();
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, salt);
+    }
+
+    // Object.assign veya preload kullanarak güncelleyelim
+    const updatedUser = Object.assign(user, updateUserDto);
+    return this.usersRepository.save(updatedUser);
   }
 
   async remove(id: number) {
-    return this.usersRepository.delete(id);
+    const result = await this.usersRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Silinmek istenen kullanıcı (#${id}) bulunamadı.`);
+    }
+    return { message: 'Kullanıcı başarıyla silindi.' };
   }
 }

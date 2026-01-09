@@ -10,7 +10,7 @@ export class CategoriesService {
   constructor(
     @InjectRepository(Category)
     private categoryRepository: Repository<Category>,
-  ) {}
+  ) { }
 
   create(createCategoryDto: CreateCategoryDto) {
     const newCategory = this.categoryRepository.create(createCategoryDto);
@@ -22,7 +22,10 @@ export class CategoriesService {
   }
 
   findOne(id: number) {
-    return this.categoryRepository.findOne({ where: { id } });
+    return this.categoryRepository.findOne({
+      where: { id },
+      relations: ['products'] // Kategori ile birlikte o kategoriye ait ürünleri de getirir
+    });
   }
 
   update(id: number, updateCategoryDto: UpdateCategoryDto) {

@@ -4,17 +4,19 @@ import { PassportModule } from '@nestjs/passport';
 import { UsersModule } from '../users/users.module'; // Users modülünü çağırdık
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
     JwtModule.register({
-      secret: 'GIZLI_KELIME', // Gerçek projede .env dosyasında olur, proje için buraya yazdık.
-      signOptions: { expiresIn: '1h' }, // Token 1 saat sonra geçersiz olsun
+      secret: 'GIZLI_KELIME',
+      signOptions: { expiresIn: '1h' },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, JwtStrategy], // 👈 JwtStrategy'yi buraya ekledik
+  exports: [AuthService], // Diğer modüller gerek duyarsa diye
 })
 export class AuthModule {}

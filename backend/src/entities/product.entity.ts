@@ -10,7 +10,17 @@ export class Product {
   @Column({ name: 'Name' })
   name: string;
 
-  @Column({ name: 'Price', type: 'decimal', precision: 10, scale: 2 })
+  // DÜZELTME: Postgres'ten gelen string fiyatı sayıya (number) çevirmek için transformer eklendi
+  @Column({
+    name: 'Price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
   price: number;
 
   @Column({ name: 'Stock' })
@@ -22,12 +32,10 @@ export class Product {
   @Column({ name: 'CategoryId' })
   categoryId: number;
 
-  // İlişki: Çok ürün -> Bir kategori
   @ManyToOne(() => Category, (category) => category.products)
   @JoinColumn({ name: 'CategoryId' })
   category: Category;
 
-  // İlişki: Ürün -> Sipariş Detayları
   @OneToMany(() => OrderItem, (item) => item.product)
   orderItems: OrderItem[];
 }

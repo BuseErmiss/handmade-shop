@@ -1,4 +1,11 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  OneToMany,
+  ManyToOne,
+  JoinColumn} from 'typeorm';
 import { User } from './user.entity';
 import { OrderItem } from './order-item.entity';
 
@@ -10,7 +17,16 @@ export class Order {
   @Column({ name: 'UserId' })
   userId: number;
 
-  @Column({ name: 'TotalPrice', type: 'decimal', precision: 10, scale: 2 })
+  @Column({
+    name: 'TotalPrice',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
   totalPrice: number;
 
   @Column({ name: 'Status', default: 'Draft' })

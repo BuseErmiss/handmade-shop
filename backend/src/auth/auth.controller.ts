@@ -1,26 +1,28 @@
 import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
-  // Endpoint: POST /auth/register
   @Post('register')
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }
 
-  // Endpoint: POST /auth/login
   @Post('login')
-  async login(@Body() body) {
-    // Önce kullanıcıyı doğrula
-    const user = await this.authService.validateUser(body.email, body.password);
+  async login(@Body() body: LoginDto) {
+    const user = await this.authService.validateUser(
+      body.email,
+      body.password,
+    );
+
     if (!user) {
-      throw new UnauthorizedException('Email veya şifre hatalı!');
+      throw new UnauthorizedException('Email veya şifre yanlış');
     }
-    // Doğruysa token ver
+
     return this.authService.login(user);
   }
 }

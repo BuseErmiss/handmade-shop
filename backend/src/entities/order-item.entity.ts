@@ -1,4 +1,10 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn
+} from 'typeorm';
 import { Order } from './order.entity';
 import { Product } from './product.entity';
 
@@ -16,7 +22,17 @@ export class OrderItem {
   @Column({ name: 'Quantity' })
   quantity: number;
 
-  @Column({ name: 'PriceAtPurchase', type: 'decimal', precision: 10, scale: 2 })
+  // DÜZELTME: Postgres'ten gelen string fiyatı sayıya çevirmek için transformer eklendi
+  @Column({ 
+    name: 'PriceAtPurchase', 
+    type: 'decimal', 
+    precision: 10, 
+    scale: 2,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value)
+    }
+  })
   priceAtPurchase: number;
 
   // İlişki: Detay -> Sipariş

@@ -1,42 +1,41 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-// Entity importları
+import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
+import { ProductsModule } from './products/products.module';
+import { OrdersModule } from './orders/orders.module';
 import { User } from './entities/user.entity';
-import { Category } from './entities/category.entity';
 import { Product } from './entities/product.entity';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
-import { UsersModule } from './users/users.module';
-import { CategoriesModule } from './categories/categories.module';
-import { ProductsModule } from './products/products.module';
-import { OrdersModule } from './orders/orders.module';
-import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Bu satır, NestJS'in dosyanın nerede olduğunu kesin olarak bulmasını sağlar
+      envFilePath: process.cwd() + '/.env',
+    }),
     TypeOrmModule.forRoot({
-      type: 'mssql',
-      host: 'localhost',
-      port: 1433,
-      username: 'handmade_user',
-      password: 'Password123!',
-      database: 'HandmadeShopDB',
-      entities: [User, Category, Product, Order, OrderItem], // Buraya ekledik
-      synchronize: false, // Tabloları elle oluşturduğumuz için false
-      options: {
-        encrypt: false,
-        trustServerCertificate: true,
+      type: 'postgres',
+      // ÖNCELİK: Eğer DATABASE_URL varsa onu kullan (en güvenli yol)
+      url: process.env.DATABASE_URL,
+      // Yoksa tek tek parçaları dene
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      entities: [User, Product, Order, OrderItem],
+      synchronize: true,
+      // DÜZELTME: Neon her zaman SSL ister, bu yüzden burayı sabitleyelim
+      ssl: {
+        rejectUnauthorized: false,
       },
     }),
-    UsersModule,
-    CategoriesModule,
+    AuthModule,
     ProductsModule,
     OrdersModule,
-    AuthModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

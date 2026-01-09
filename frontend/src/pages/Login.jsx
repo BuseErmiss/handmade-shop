@@ -1,72 +1,98 @@
 import { useState } from 'react';
-import { Container, Form, Button, Card, Alert } from 'react-bootstrap';
+import { Container, Form, Button, Card, Alert, Spinner } from 'react-bootstrap';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { API_URL } from '../api'; // Sabit URL yerine bunu ekledik
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const successMessage = location.state?.message;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+
     try {
-      // Backend'e istek atıyoruz
-      const response = await axios.post('http://localhost:3000/auth/login', {
+      // DÜZELTME: API_URL değişkenini kullanarak /auth/login'e istek atıyoruz
+      const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password
       });
 
-      // Gelen Token'ı tarayıcıya kaydediyoruz
       localStorage.setItem('token', response.data.access_token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
 
-      alert("Giriş Başarılı!");
-      // Şimdilik ana sayfaya yönlendirelim (henüz yapmadık ama olsun)
       navigate('/home');
-      
     } catch (err) {
-      setError('Giriş başarısız! Email veya şifre hatalı.');
+      console.error(err);
+      setError(err.response?.data?.message || 'Giriş başarısız! Email veya şifre hatalı.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: "100vh" }}>
-      <Card style={{ width: '400px' }} className="shadow">
-        <Card.Body>
-          <h2 className="text-center mb-4">Giriş Yap</h2>
+    <Container
+      className="d-flex justify-content-center align-items-center"
+      style={{ minHeight: '100vh', background: '#f8f9fa' }}
+    >
+      <Card style={{ width: '100%', maxWidth: '400px' }} className="shadow-sm border-0">
+        <Card.Body className="p-4">
+          <h2 className="text-center mb-4 fw-bold text-primary">Handmade Shop</h2>
+          <p className="text-center text-muted mb-4">Hesabınıza giriş yapın</p>
+
+          {successMessage && <Alert variant="success">{successMessage}</Alert>}
           {error && <Alert variant="danger">{error}</Alert>}
-          
+
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3">
               <Form.Label>Email Adresi</Form.Label>
-              <Form.Control 
-                type="email" 
+              <Form.Control
+                type="email"
                 placeholder="ornek@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required 
+                required
               />
             </Form.Group>
 
             <Form.Group className="mb-4">
               <Form.Label>Şifre</Form.Label>
-              <Form.Control 
-                type="password" 
-                placeholder="******"
+              <Form.Control
+                type="password"
+                placeholder="••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required 
+                required
               />
             </Form.Group>
 
-            <Button className="w-100" type="submit">
-              Giriş Yap
+            <Button 
+              className="w-100 mb-3 py-2" 
+              type="submit" 
+              disabled={loading}
+              variant="primary"
+            >
+              {loading ? <Spinner animation="border" size="sm" /> : 'Giriş Yap'}
             </Button>
 
-            <div className="text-center">
-              Hesabın yok mu? <a href="/register" style={{textDecoration: 'none'}}>Kayıt Ol</a>
+            <div className="text-center mt-3">
+              <span className="text-muted">Hesabın yok mu?</span>{' '}
+              <Button 
+                variant="link" 
+                className="p-0 text-decoration-none fw-bold"
+                onClick={() => navigate('/register')}
+              >
+                Hemen Kayıt Ol
+              </Button>
             </div>
           </Form>
         </Card.Body>

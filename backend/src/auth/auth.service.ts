@@ -9,30 +9,59 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
-  // Login: Kullanıcı adı ve şifreyi kontrol et
-  async validateUser(email: string, pass: string): Promise<any> {
+  async validateUser(email: string, password: string): Promise<any> {
     const user = await this.usersService.findOneByEmail(email);
-    // Kullanıcı varsa VE şifre eşleşiyorsa
-    if (user && (await bcrypt.compare(pass, user.password))) {
-      const { password, ...result } = user; // Şifreyi sonuçtan çıkar, geri kalanı döndür
-      return result;
+
+    if (!user) {
+      console.log('--- DEBUG: Kullanıcı veritabanında bulunamadı! ---');
+      return null;
     }
-    return null;
+
+    console.log('--- DEBUG: Kullanıcı bulundu, şifre kontrol ediliyor... ---');
+    console.log('Veritabanındaki Hash:', user.password); // Eğer 'undefined' yazıyorsa sorun 1. maddedir.
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      console.log('--- DEBUG: Şifre yanlış! ---');
+      return null;
+    }
+
+    return user;
   }
 
-  // Token Üretme Fonksiyonu
   async login(user: any) {
-    const payload = { email: user.email, sub: user.id, role: user.role };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
     return {
-      access_token: this.jwtService.sign(payload), // Token'ı oluşturup gönderir
-      user: user,
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
     };
   }
-
-  // Kayıt Olma Fonksiyonu
   async register(createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+
+    const user = await this.usersService.create({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+
+    return {
+      message: 'Kayıt başarılı',
+      user: {
+        id: user.id,
+        email: user.email,
+      },
+    };
   }
 }

@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-import { User } from '../entities/user.entity'; // Ana entity klasörümüzden
+import { User } from '../entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User])], // Veritabanı tablosunu bağladık
+  imports: [TypeOrmModule.forFeature([User])],
   controllers: [UsersController],
   providers: [UsersService],
-  exports: [UsersService], // DİKKAT: Bunu eklemezsek Auth modülü burayı kullanamaz!
+  exports: [UsersService], // AuthService'in kullanabilmesi için bu şart
 })
 export class UsersModule {}
